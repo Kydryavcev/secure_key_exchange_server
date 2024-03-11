@@ -27,7 +27,7 @@ public class Server
      * значений порта, который находится в диапазоне от 0 до 65535 включительно.
      * @throws SocketException если в базовом протоколе возникла ошибка, например ошибка TCP.
      */
-    public void Server(int port) throws IOException, SecurityException, IllegalArgumentException, SocketException
+    public Server(int port) throws IOException, SecurityException, IllegalArgumentException, SocketException
     {
         serverSocket = new ServerSocket(port);
 
@@ -43,6 +43,11 @@ public class Server
         System.out.println("Подключение прошло успешно!");
 
         out = new DataOutputStream(socket.getOutputStream());
+    }
+
+    public boolean isConnect()
+    {
+        return socket != null;
     }
 
     public void disconnect() throws IOException

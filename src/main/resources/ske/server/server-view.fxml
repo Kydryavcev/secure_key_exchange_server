@@ -45,7 +45,7 @@
       </AnchorPane>
       <AnchorPane GridPane.columnIndex="1">
          <children>
-            <Button fx:id="connectionButton" layoutX="314.0" layoutY="14.0" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="25.0" prefWidth="100.0" text="Подключение" AnchorPane.rightAnchor="120.0" AnchorPane.topAnchor="12.0">
+            <Button fx:id="connectionButton" layoutX="314.0" layoutY="14.0" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#onConnectionButton" prefHeight="25.0" prefWidth="100.0" text="Подключение" AnchorPane.rightAnchor="120.0" AnchorPane.topAnchor="12.0">
                <cursor>
                   <Cursor fx:constant="HAND" />
                </cursor>
@@ -55,8 +55,8 @@
                   <Cursor fx:constant="HAND" />
                </cursor>
             </Button>
-            <ProgressBar layoutX="99.0" layoutY="52.0" prefHeight="25.0" prefWidth="208.0" progress="0.0" visible="false" AnchorPane.rightAnchor="12.0" />
-            <Label layoutX="38.0" layoutY="56.0" text="Указанный порт уже занят" textFill="RED" visible="false" />
+            <ProgressBar fx:id="connectionProgressBar" layoutX="99.0" layoutY="52.0" prefHeight="25.0" prefWidth="208.0" progress="1.0" translateZ="2.0" visible="false" AnchorPane.rightAnchor="12.0" />
+            <Label fx:id="errorConnectionLabel" layoutX="38.0" layoutY="56.0" text="Указанный порт уже занят" textFill="RED" translateZ="1.0" visible="false" AnchorPane.rightAnchor="12.0" />
          </children>
       </AnchorPane>
    </children>
