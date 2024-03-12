@@ -45,6 +45,13 @@ public class Server
         out = new DataOutputStream(socket.getOutputStream());
     }
 
+    public void sendMessage(String message)
+    {
+        byte[] messageBytes = message.getBytes();
+
+        byte[] cipherBytes =
+    }
+
     public boolean isConnect()
     {
         return socket != null;

@@ -59,7 +59,7 @@ public class ServerController
 
         errorConnectionLabel.setVisible(false);
 
-        if (portNumberTextField.isDisabled())
+        if (portAutoNumberCheckBox.isSelected())
         {
             try
             {
@@ -187,7 +187,7 @@ public class ServerController
 
     private boolean canConnect()
     {
-        if (server.isConnect())
+        if (server != null && server.isConnect())
             return false;
 
         if (portAutoNumberCheckBox.isSelected())
