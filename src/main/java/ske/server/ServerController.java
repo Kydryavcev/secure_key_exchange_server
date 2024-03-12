@@ -7,11 +7,16 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import model.Server;
 
-import java.io.IOException;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-
+/**
+ * <h2>Контроллер для (за) FXML-файлом</h2>
+ *
+ * <p>В данном классе происходит обработка событий в графическом интерфейсе. Реализована логика взаимодействия с
+ * пользователем, управление логикой сервера.</p>
+ *
+ * @author Kydryavcev Ilya
+ * @version 1.0
+ * @since 12.03.24
+ */
 public class ServerController
 {
     public static final int ERROR_PORT_NUMBER = -1;
@@ -23,14 +28,23 @@ public class ServerController
     @FXML
     private TextField portNumberTextField;
     @FXML
+    private TextArea messageTextArea;
+    @FXML
     private CheckBox portAutoNumberCheckBox;
 
     @FXML
-    private Label errorValuePortNumberLabel, errorConnectionLabel;
+    private Label errorValuePortNumberLabel, errorConnectionLabel, connectionEstablishedLabel,
+            connectionNotSecureLabel, errorSendMessageLabel;
 
     @FXML
-    private Button connectionButton;
+    private Button connectionButton, disconnectButton, sendMessageButton;
 
+    /**
+     * <h2>Переключатель режима выбора порта для соединения.</h2>
+     *
+     * <p>При активном чекбоксе {@code portAutoNumberCheckBox} порт задаётся автоматически. В выключенном положении
+     * номер порта задаётся пользователем.</p>
+     */
     @FXML
     protected void switchPortCheckBox()
     {
@@ -50,119 +64,94 @@ public class ServerController
         }
     }
 
+    /**
+     * <h3>Обработка нажатия на кнопку "Подключение" - {@code connectionButton}</h3>
+     *
+     * <p>Данным методом производится попытка наладить соединение с клиент-приложением, а также защитить канал передачи
+     * данных.</p>
+     *
+     *
+     * <p>В случае успеха у пользователя появляется возможность отправить сообщение клиент-приложениею</p>
+     *
+     * <p>В случае неудачи выводиться текст ошибки. Разблокируется контроллеры для настройки соединения (чекбокс, поле
+     * ввода).</p>
+     */
     @FXML
     protected void onConnectionButton()
     {
+        messageTextArea.setDisable(true);
         connectionButton.setDisable(true);
+        sendMessageButton.setDisable(true);
         portNumberTextField.setDisable(true);
         portAutoNumberCheckBox.setDisable(true);
 
         errorConnectionLabel.setVisible(false);
+        connectionNotSecureLabel.setVisible(false);
+        connectionEstablishedLabel.setVisible(false);
 
-        if (portAutoNumberCheckBox.isSelected())
-        {
-            try
-            {
-                server = new Server(0);
-            }
-            catch (SocketException ex)
-            {
-                errorConnectionLabel.setText("В базовом протоколе возникла ошибка.");
-
-                errorConnectionLabel.setVisible(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-            catch (IOException ex)
-            {
-                errorConnectionLabel.setText("При открытии сокета возникла ошибка ввода-вывода.");
-
-                errorConnectionLabel.setVisible(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-            catch (SecurityException ex)
-            {
-                errorConnectionLabel.setText("Менеджер безопасности и его метод checkListen не разрешает операцию.");
-
-                errorConnectionLabel.setVisible(true);
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-        }
-        else
+        try
         {
             int portNumber = getPortNumberTextFieldValue();
 
-            if (portNumber == ERROR_PORT_NUMBER)
-            {
-                errorConnectionLabel.setText("Указан некорректный номер порта. Введите номер порта заново.");
-
-                errorConnectionLabel.setVisible(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-
-            try
-            {
+            if (portAutoNumberCheckBox.isSelected())
+                server = new Server(0);
+            else
                 server = new Server(portNumber);
-            }
-            catch (SocketException ex)
-            {
-                errorConnectionLabel.setText("В базовом протоколе возникла ошибка.");
+        }
+        catch (Server.ServerInitializationException ex)
+        {
+            errorConnectionLabel.setText(ex.getMessage());
 
-                connectionButton.setDisable(true);
+            errorConnectionLabel.setVisible(true);
 
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-            catch (IOException ex)
-            {
-                errorConnectionLabel.setText("При открытии сокета возникла ошибка ввода-вывода.");
-
-                connectionButton.setDisable(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-            catch (IllegalArgumentException ex)
-            {
-                errorConnectionLabel.setText("Указан некорректный номер порта. Введите номер порта заново.");
-
-                errorConnectionLabel.setVisible(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
-            catch (SecurityException ex)
-            {
-                errorConnectionLabel.setText("Менеджер безопасности и его метод checkListen не разрешает операцию.");
-
-                errorConnectionLabel.setVisible(true);
-
-                connectionButton.setDisable(!canConnect());
-                portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
-                portAutoNumberCheckBox.setDisable(false);
-            }
+            connectionButton.setDisable(!canConnect());
+            portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
+            portAutoNumberCheckBox.setDisable(false);
         }
 
         Thread connection = new Thread(new ConnectionServer());
         Thread progressBarThread = new Thread(new ProgressBarValue());
 
+        connection.setDaemon(true);
+        progressBarThread.setDaemon(true);
+
         connection.start();
         progressBarThread.start();
     }
 
+    /**
+     * <h3>Обработка нажатия на кнопку "Отправить" - {@code sendMessageButton}</h3>
+     */
+    @FXML
+    protected void onClickSendMessageButton()
+    {
+        String message = messageTextArea.getText();
+
+        if (message.length() == 0)
+            return;
+
+        try
+        {
+            server.sendMessage(message);
+        }
+        catch (Server.SendMessageException ex)
+        {
+            errorSendMessageLabel.setText(ex.getMessage());
+
+            errorSendMessageLabel.setVisible(true);
+        }
+
+    }
+
+    /**
+     * <h3>Инициализация контроллера.</h3>
+     *
+     * <p>Добавляет прослушивателя к полю ввода номера порта. В подключаемом прослушивателе происходит волидация вводимой
+     * строки.</p>
+     *
+     * <p><i>Nota bene</i>: метод инициализации имеет доступ к объектам интерфейса FXML, поэтому использование конструктора
+     * класса невозможно в подобных ситуациях.</p>
+     */
     @FXML
     public void initialize()
     {
@@ -185,6 +174,11 @@ public class ServerController
         });
     }
 
+    /**
+     * <h3>Проверка возможности соединения</h3>
+     *
+     * @return если соединение возможно или необходимо восстановить, то {@code True}, иначе {@code False}
+     */
     private boolean canConnect()
     {
         if (server != null && server.isConnect())
@@ -196,6 +190,10 @@ public class ServerController
         return getPortNumberTextFieldValue() != ERROR_PORT_NUMBER;
     }
 
+    /**
+     * <h3>Возвращает численное значения поля ввода номера порта</h3>
+     * @return номер порта или {@code Server.ERROR_PORT_NUMBER}
+     */
     private int getPortNumberTextFieldValue()
     {
         String portNumberTextFieldValue = portNumberTextField.getText();
@@ -215,6 +213,9 @@ public class ServerController
         }
     }
 
+    /**
+     * <h2>Класс для установки соединения в дочернем потоке</h2>
+     */
     class ConnectionServer implements Runnable
     {
         @Override
@@ -224,14 +225,14 @@ public class ServerController
             {
                 server.connection();
             }
-            catch (SocketTimeoutException e)
+            catch (Server.ConnectionException ex)
             {
                 Platform.runLater(new Runnable()
                 {
                     @Override
                     public void run()
                     {
-                        errorConnectionLabel.setText("Превышено время ожидания.");
+                        errorConnectionLabel.setText(ex.getMessage());
 
                         errorConnectionLabel.setVisible(true);
 
@@ -240,27 +241,62 @@ public class ServerController
                         portAutoNumberCheckBox.setDisable(false);
                     }
                 });
+
+                throw new RuntimeException();
             }
-            catch (IOException ex)
+
+            Platform.runLater(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    connectionEstablishedLabel.setVisible(true);
+
+                    disconnectButton.setDisable(false);
+
+                }
+            });
+
+            try
+            {
+                server.connectionProtection();
+            }
+            catch (Server.ConnectionProtectionException ex)
             {
                 Platform.runLater(new Runnable()
                 {
                     @Override
                     public void run()
                     {
-                        errorConnectionLabel.setText("Во время ожидания соединения возникла ошибка ввода-вывода.");
+                        connectionNotSecureLabel.setText(ex.getMessage());
 
-                        connectionButton.setDisable(true);
+                        connectionNotSecureLabel.setVisible(true);
 
                         connectionButton.setDisable(!canConnect());
                         portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
                         portAutoNumberCheckBox.setDisable(false);
                     }
                 });
+
+                throw new RuntimeException();
             }
+
+
+            Platform.runLater(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    messageTextArea.setDisable(false);
+                    sendMessageButton.setDisable(false);
+                }
+            });
         }
     }
 
+    /**
+     * <h2>Класс для работы прогресбара в дочернем потоке</h2>
+     */
     class ProgressBarValue implements Runnable
     {
         @Override
@@ -289,12 +325,11 @@ public class ServerController
                     }
                 });
 
-
                 progressValue -= 0.01;
 
                 try
                 {
-                    Thread.sleep(95);
+                    Thread.sleep(98);
                 }
                 catch (InterruptedException e)
                 {

@@ -16,6 +16,7 @@
    <columnConstraints>
       <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
       <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+      <ColumnConstraints />
    </columnConstraints>
    <rowConstraints>
       <RowConstraints minHeight="100.0" prefHeight="100.0" />
@@ -35,8 +36,8 @@
       </AnchorPane>
       <AnchorPane GridPane.columnSpan="3" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1">
          <children>
-            <TextArea disable="true" layoutX="4.0" prefHeight="130.0" prefWidth="530.0" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="12.0" AnchorPane.rightAnchor="12.0" AnchorPane.topAnchor="12.0" />
-            <Button disable="true" mnemonicParsing="false" text="Отправить" AnchorPane.bottomAnchor="12.0" AnchorPane.rightAnchor="12.0">
+            <TextArea fx:id="messageTextArea" disable="true" layoutX="4.0" prefHeight="130.0" prefWidth="530.0" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="12.0" AnchorPane.rightAnchor="12.0" AnchorPane.topAnchor="12.0" />
+            <Button fx:id="sendMessageButton" disable="true" mnemonicParsing="false" onAction="#onClickSendMessageButton" text="Отправить" AnchorPane.bottomAnchor="12.0" AnchorPane.rightAnchor="12.0">
                <cursor>
                   <Cursor fx:constant="HAND" />
                </cursor>
@@ -50,13 +51,16 @@
                   <Cursor fx:constant="HAND" />
                </cursor>
             </Button>
-            <Button disable="true" layoutX="413.0" layoutY="13.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="100.0" text="Отключение" AnchorPane.rightAnchor="12.0" AnchorPane.topAnchor="12.0">
+            <Button fx:id="disconnectButton" disable="true" layoutX="413.0" layoutY="13.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="100.0" text="Отключение" AnchorPane.rightAnchor="12.0" AnchorPane.topAnchor="12.0">
                <cursor>
                   <Cursor fx:constant="HAND" />
                </cursor>
             </Button>
             <ProgressBar fx:id="connectionProgressBar" layoutX="99.0" layoutY="52.0" prefHeight="25.0" prefWidth="208.0" progress="1.0" translateZ="2.0" visible="false" AnchorPane.rightAnchor="12.0" />
             <Label fx:id="errorConnectionLabel" layoutX="38.0" layoutY="56.0" text="Указанный порт уже занят" textFill="RED" translateZ="1.0" visible="false" AnchorPane.rightAnchor="12.0" />
+            <Label fx:id="connectionEstablishedLabel" layoutX="103.0" layoutY="56.0" text="Соединение установлено" textFill="#099106" visible="false" AnchorPane.rightAnchor="12.0" />
+            <Label fx:id="connectionNotSecureLabel" layoutX="230.0" layoutY="77.0" text="Соединение не защищено" textFill="RED" visible="false" AnchorPane.rightAnchor="12.0" />
+            <Label fx:id="errorSendMessageLabel" layoutX="216.0" layoutY="77.0" text="Ошибка при отправке сообщения" textFill="RED" visible="false" AnchorPane.rightAnchor="12.0" />
          </children>
       </AnchorPane>
    </children>
