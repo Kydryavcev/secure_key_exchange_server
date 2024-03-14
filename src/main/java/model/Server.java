@@ -53,7 +53,7 @@ public class Server
         }
         catch (SocketException ex)
         {
-            throw new ServerInitializationException("В базовом протоколе возникла ошибка.");
+            throw new ServerInitializationException("Данный порт уже занят.");
         }
         catch (IllegalArgumentException ex)
         {
@@ -67,6 +67,15 @@ public class Server
         {
             throw new ServerInitializationException("При открытии сокета возникла ошибка ввода-вывода.");
         }
+    }
+
+    /**
+     * <h3>Получение номера порта для установки соединения</h3>
+     * @return номер порта
+     */
+    public int getLocalPort()
+    {
+        return serverSocket.getLocalPort();
     }
 
     /**
@@ -139,7 +148,21 @@ public class Server
         {
             out.write(publicKey.getEncoded());
 
-            byte[] wrappedKeyBytes = in.readAllBytes();
+            byte[] wrappedKeyBytes = new byte[100], buffer = new byte[100];
+
+            int lengthMessage = in.read(wrappedKeyBytes);
+
+            while (in.available() > 0)
+            {
+                lengthMessage += in.read(buffer);
+
+                byte[] temp = new byte[lengthMessage];
+
+                System.arraycopy(wrappedKeyBytes, 0, temp,0, wrappedKeyBytes.length);
+                System.arraycopy(buffer,0,temp,wrappedKeyBytes.length, lengthMessage - wrappedKeyBytes.length);
+
+                wrappedKeyBytes = temp;
+            }
 
             secretKey = CryptographicAlgorithms.unwrapKey(wrappedKeyBytes, privateKey);
         }
@@ -180,6 +203,8 @@ public class Server
 
             byte[] cipherBytes = CryptographicAlgorithms.encrypt(messageBytes, secretKey);
 
+            System.out.println(cipherBytes.length);
+
             out.write(cipherBytes);
         }
         catch (IOException ex)
@@ -217,12 +242,18 @@ public class Server
         return socket != null;
     }
 
+    public boolean connected()
+    {
+        return true;
+    }
+
     /**
      * <h2>Потерять соединение</h2>
      * @throws IOException если произошла ошибка ввода-вывода
      */
     public void disconnect() throws IOException
     {
+        in.close();
         out.close();
         socket.close();
         serverSocket.close();

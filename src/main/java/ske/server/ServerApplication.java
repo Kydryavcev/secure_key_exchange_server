@@ -3,10 +3,11 @@ package ske.server;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
-import model.Server;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 public class ServerApplication extends Application
 {
@@ -19,8 +20,14 @@ public class ServerApplication extends Application
         stage.setMinWidth(600);
         stage.setMinHeight(400);
         stage.setTitle("Приложение сервера");
+        InputStream inIcon = ServerApplication.class.getResourceAsStream("/image/server.png");
+        stage.getIcons().add(new Image(inIcon));
         stage.setScene(scene);
         stage.show();
+
+        ServerController controller = fxmlLoader.getController();
+
+        stage.setOnCloseRequest(controller.getCloseEventHandler());
     }
 
     public static void main(String[] args)

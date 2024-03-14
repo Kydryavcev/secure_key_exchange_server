@@ -55,7 +55,7 @@ public class CryptographicAlgorithms
 
         cipher.init(Cipher.UNWRAP_MODE, key);
 
-        return cipher.unwrap(wrappedKey, "RSA", Cipher.SECRET_KEY);
+        return cipher.unwrap(wrappedKey, "AES", Cipher.SECRET_KEY);
     }
 
     /**
@@ -84,6 +84,7 @@ public class CryptographicAlgorithms
             throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             IllegalBlockSizeException, BadPaddingException
     {
+        System.out.println(new String(data));
         Cipher cipher = Cipher.getInstance("AES");
 
         cipher.init(Cipher.ENCRYPT_MODE, key);

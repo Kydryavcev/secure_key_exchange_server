@@ -5,7 +5,11 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import model.Server;
+
+import java.io.IOException;
 
 /**
  * <h2>Контроллер для (за) FXML-файлом</h2>
@@ -38,6 +42,29 @@ public class ServerController
 
     @FXML
     private Button connectionButton, disconnectButton, sendMessageButton;
+
+    private javafx.event.EventHandler<WindowEvent> closeEventHandler =
+            new javafx.event.EventHandler<WindowEvent>()
+            {
+                @Override
+                public void handle(WindowEvent event)
+                {
+                    try
+                    {
+                        if (server != null)
+                            server.disconnect();
+                    }
+                    catch (IOException ex)
+                    {
+                        System.out.println(ex.getMessage());
+                    }
+                }
+            };
+
+    public javafx.event.EventHandler<WindowEvent> getCloseEventHandler()
+    {
+        return closeEventHandler;
+    }
 
     /**
      * <h2>Переключатель режима выбора порта для соединения.</h2>
@@ -107,6 +134,8 @@ public class ServerController
             connectionButton.setDisable(!canConnect());
             portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
             portAutoNumberCheckBox.setDisable(false);
+
+            return;
         }
 
         Thread connection = new Thread(new ConnectionServer());
@@ -221,6 +250,15 @@ public class ServerController
         @Override
         public void run()
         {
+            Platform.runLater(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    portNumberTextField.setText(Integer.toString(server.getLocalPort()));
+                }
+            });
+
             try
             {
                 server.connection();
@@ -235,6 +273,7 @@ public class ServerController
                         errorConnectionLabel.setText(ex.getMessage());
 
                         errorConnectionLabel.setVisible(true);
+                        connectionProgressBar.setVisible(false);
 
                         connectionButton.setDisable(!canConnect());
                         portNumberTextField.setDisable(portAutoNumberCheckBox.isSelected());
@@ -250,6 +289,8 @@ public class ServerController
                 @Override
                 public void run()
                 {
+                    connectionProgressBar.setVisible(false);
+
                     connectionEstablishedLabel.setVisible(true);
 
                     disconnectButton.setDisable(false);
@@ -259,6 +300,8 @@ public class ServerController
 
             try
             {
+                Thread.sleep(100);
+
                 server.connectionProtection();
             }
             catch (Server.ConnectionProtectionException ex)
@@ -279,6 +322,10 @@ public class ServerController
                 });
 
                 throw new RuntimeException();
+            }
+            catch (InterruptedException ex)
+            {
+
             }
 
 

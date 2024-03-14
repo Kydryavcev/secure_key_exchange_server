@@ -60,6 +60,7 @@
             <Label fx:id="errorConnectionLabel" layoutX="38.0" layoutY="56.0" text="Указанный порт уже занят" textFill="RED" translateZ="1.0" visible="false" AnchorPane.rightAnchor="12.0" />
             <Label fx:id="connectionEstablishedLabel" layoutX="103.0" layoutY="56.0" text="Соединение установлено" textFill="#099106" visible="false" AnchorPane.rightAnchor="12.0" />
             <Label fx:id="connectionNotSecureLabel" layoutX="230.0" layoutY="77.0" text="Соединение не защищено" textFill="RED" visible="false" AnchorPane.rightAnchor="12.0" />
+            <Label fx:id="disconnectLabel" layoutX="118.0" layoutY="77.0" text="Соединение  потеряно" textFill="RED" visible="false" AnchorPane.rightAnchor="13.199999999999989" />
             <Label fx:id="errorSendMessageLabel" layoutX="216.0" layoutY="77.0" text="Ошибка при отправке сообщения" textFill="RED" visible="false" AnchorPane.rightAnchor="12.0" />
          </children>
       </AnchorPane>
