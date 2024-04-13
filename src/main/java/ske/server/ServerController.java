@@ -5,7 +5,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import model.Server;
 
@@ -23,7 +22,20 @@ import java.io.IOException;
  */
 public class ServerController
 {
-    public static final int ERROR_PORT_NUMBER = -1;
+    /**
+     * ОЖИДАНИЕ
+     */
+    private static final int WAITING = 1;
+
+    private static final int SEND_MESSAGE = 2;
+    private static final int MESSAGE_DELIVERED = 3;
+    private static final int DISCONNECT = -1;
+
+    private int SIGNAL = WAITING;
+
+    private static final int ERROR_PORT_NUMBER = -1;
+
+    private boolean connected = false;
 
     private Server server;
 
@@ -38,10 +50,15 @@ public class ServerController
 
     @FXML
     private Label errorValuePortNumberLabel, errorConnectionLabel, connectionEstablishedLabel,
-            connectionNotSecureLabel, errorSendMessageLabel;
+            connectionNotSecureLabel, errorSendMessageLabel, disconnectLabel;
 
     @FXML
     private Button connectionButton, disconnectButton, sendMessageButton;
+
+    public void setServer(Server  server)
+    {
+         this.server = server;
+    }
 
     private javafx.event.EventHandler<WindowEvent> closeEventHandler =
             new javafx.event.EventHandler<WindowEvent>()
@@ -49,15 +66,8 @@ public class ServerController
                 @Override
                 public void handle(WindowEvent event)
                 {
-                    try
-                    {
-                        if (server != null)
+                    if (server.getSocket() != null)
                             server.disconnect();
-                    }
-                    catch (IOException ex)
-                    {
-                        System.out.println(ex.getMessage());
-                    }
                 }
             };
 
@@ -112,6 +122,7 @@ public class ServerController
         portNumberTextField.setDisable(true);
         portAutoNumberCheckBox.setDisable(true);
 
+        disconnectLabel.setVisible(false);
         errorConnectionLabel.setVisible(false);
         connectionNotSecureLabel.setVisible(false);
         connectionEstablishedLabel.setVisible(false);
@@ -121,11 +132,11 @@ public class ServerController
             int portNumber = getPortNumberTextFieldValue();
 
             if (portAutoNumberCheckBox.isSelected())
-                server = new Server(0);
+                server.highlightSocket(0);
             else
-                server = new Server(portNumber);
+                server.highlightSocket(portNumber);
         }
-        catch (Server.ServerInitializationException ex)
+        catch (Server.HighlightSocketException ex)
         {
             errorConnectionLabel.setText(ex.getMessage());
 
@@ -148,28 +159,21 @@ public class ServerController
         progressBarThread.start();
     }
 
+    @FXML
+    protected void onClickDisconnectButton()
+    {
+        server.disconnect();
+
+        connected = false;
+    }
+
     /**
      * <h3>Обработка нажатия на кнопку "Отправить" - {@code sendMessageButton}</h3>
      */
     @FXML
     protected void onClickSendMessageButton()
     {
-        String message = messageTextArea.getText();
-
-        if (message.length() == 0)
-            return;
-
-        try
-        {
-            server.sendMessage(message);
-        }
-        catch (Server.SendMessageException ex)
-        {
-            errorSendMessageLabel.setText(ex.getMessage());
-
-            errorSendMessageLabel.setVisible(true);
-        }
-
+        SIGNAL = 2;
     }
 
     /**
@@ -210,7 +214,7 @@ public class ServerController
      */
     private boolean canConnect()
     {
-        if (server != null && server.isConnect())
+        if (connected)
             return false;
 
         if (portAutoNumberCheckBox.isSelected())
@@ -250,18 +254,54 @@ public class ServerController
         @Override
         public void run()
         {
-            Platform.runLater(new Runnable()
-            {
-                @Override
-                public void run()
-                {
-                    portNumberTextField.setText(Integer.toString(server.getLocalPort()));
-                }
-            });
-
             try
             {
+                Platform.runLater(new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        portNumberTextField.setText(Integer.toString(server.getLocalPort()));
+                    }
+                });
+
                 server.connection();
+
+                Platform.runLater(new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        connectionProgressBar.setVisible(false);
+
+                        connectionEstablishedLabel.setVisible(true);
+
+                        disconnectButton.setDisable(false);
+                    }
+                });
+
+                Thread.sleep(100);
+
+                server.connectionProtection();
+
+
+                Platform.runLater(new Runnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        messageTextArea.setDisable(false);
+                        sendMessageButton.setDisable(false);
+                    }
+                });
+
+                connected  = true;
+
+                Thread synchronization = new Thread(new Synchronization());
+
+                synchronization.setDaemon(true);
+
+                synchronization.start();
             }
             catch (Server.ConnectionException ex)
             {
@@ -281,28 +321,10 @@ public class ServerController
                     }
                 });
 
+                server.disconnect();
+
+
                 throw new RuntimeException();
-            }
-
-            Platform.runLater(new Runnable()
-            {
-                @Override
-                public void run()
-                {
-                    connectionProgressBar.setVisible(false);
-
-                    connectionEstablishedLabel.setVisible(true);
-
-                    disconnectButton.setDisable(false);
-
-                }
-            });
-
-            try
-            {
-                Thread.sleep(100);
-
-                server.connectionProtection();
             }
             catch (Server.ConnectionProtectionException ex)
             {
@@ -321,23 +343,16 @@ public class ServerController
                     }
                 });
 
+                server.disconnect();
+
                 throw new RuntimeException();
             }
             catch (InterruptedException ex)
             {
+                server.disconnect();
 
+                System.out.println(ex.getMessage());
             }
-
-
-            Platform.runLater(new Runnable()
-            {
-                @Override
-                public void run()
-                {
-                    messageTextArea.setDisable(false);
-                    sendMessageButton.setDisable(false);
-                }
-            });
         }
     }
 
@@ -360,7 +375,7 @@ public class ServerController
 
             double progressValue = 1;
 
-            while (progressValue > 0)
+            while (progressValue > 0 && !connected)
             {
                 double finalProgressValue = progressValue;
                 Platform.runLater(new Runnable()
@@ -391,6 +406,140 @@ public class ServerController
                     connectionProgressBar.setVisible(false);
                 }
             });
+        }
+    }
+
+    /**
+     * <h2>Класс для синхронизации работы серверного и клиентского приложений</h2>
+     */
+    class Synchronization implements Runnable
+    {
+        @Override
+        public void run()
+        {
+
+            try
+            {
+                Thread.sleep(250);
+
+                switch (SIGNAL)
+                {
+                    case WAITING ->
+                    {
+                        server.synchronizationOut(WAITING);
+                    }
+                    case SEND_MESSAGE ->
+                    {
+                        server.synchronizationOut(SEND_MESSAGE);
+
+                        String message = messageTextArea.getText();
+
+                        if (message.length() == 0)
+                            return;
+
+                        server.sendMessage(message);
+
+                        messageTextArea.setText("");
+
+                        SIGNAL = WAITING;
+                    }
+                    case DISCONNECT ->
+                    {
+                        disconnect();
+                        return;
+                    }
+                }
+
+                exit:
+                while (true)
+                {
+                    Thread.sleep(500);
+
+                    int signal = DISCONNECT;
+
+                    if (connected)
+                        signal = server.synchronizationIn();
+
+                    switch (signal)
+                    {
+                        case WAITING ->
+                        {
+//                            System.out.println("Ждём");
+                        }
+                        case MESSAGE_DELIVERED ->
+                        {
+//                            signal = client.synchronization();
+//                            System.out.println("Ооо кошелёк!!!");
+                        }
+                        case DISCONNECT ->
+                        {
+                            disconnect();
+
+                            break exit;
+                        }
+                    }
+
+                    switch (SIGNAL)
+                    {
+                        case WAITING ->
+                        {
+                            server.synchronizationOut(WAITING);
+                        }
+                        case SEND_MESSAGE ->
+                        {
+                            server.synchronizationOut(SEND_MESSAGE);
+
+                            String message = messageTextArea.getText();
+
+                            if (message.length() == 0)
+                                return;
+
+                            server.sendMessage(message);
+
+                            messageTextArea.setText("");
+
+                            SIGNAL = WAITING;
+                        }
+                        case DISCONNECT ->
+                        {
+                            disconnect();
+
+                            break exit;
+                        }
+                    }
+                }
+            }
+            catch (Server.SynchronizationException ex)
+            {
+                System.out.println(ex.getMessage());
+                disconnect();
+            }
+            catch (Server.SendMessageException ex)
+            {
+                errorSendMessageLabel.setText(ex.getMessage());
+
+                errorSendMessageLabel.setVisible(true);
+            }
+            catch (InterruptedException ex)
+            {
+
+            }
+        }
+
+        private void disconnect()
+        {
+            server.disconnect();
+
+            connected = false;
+
+            disconnectLabel.setVisible(true);
+            connectionEstablishedLabel.setVisible(false);
+
+            messageTextArea.setDisable(true);
+            disconnectButton.setDisable(true);
+            sendMessageButton.setDisable(true);
+            portNumberTextField.setDisable(false);
+            connectionButton.setDisable(!canConnect());
         }
     }
 }

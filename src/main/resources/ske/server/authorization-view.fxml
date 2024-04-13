@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="272.0" prefWidth="464.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ske.server.AuthorizationController">
+   <children>
+      <Label layoutX="24.0" layoutY="81.0" text="Введите псевдоним записи:" />
+      <Label layoutX="24.0" layoutY="126.0" text="Введите пароль хранилища ключей:" />
+      <TextField fx:id="aliasTextField" layoutX="260.0" layoutY="77.0" prefHeight="26.0" prefWidth="179.0" />
+      <PasswordField fx:id="passwordTextField" layoutX="260.0" layoutY="122.0" prefHeight="26.0" prefWidth="179.0" />
+      <Button fx:id="loadKeyButton" layoutX="259.0" layoutY="170.0" mnemonicParsing="false" onAction="#onClickLoadKeyButton" text="Загрузить ключ подписи" />
+      <Label fx:id="noAliasLabel" layoutX="260.0" layoutY="103.0" text="Нет записи с таким пседонимом" textFill="RED" visible="false" />
+      <Label fx:id="incorrectPasswordLabel" layoutX="259.0" layoutY="148.0" text="Пароль не верен" textFill="RED" visible="false" />
+   </children>
+</AnchorPane>

@@ -5,6 +5,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -33,17 +34,57 @@ public class Server
 
     private Key secretKey;
 
+    private Signature signature;
+
     /**
-     * <h2>Конструктор класса {@code Server}</h2>
+     * <h3>Инициализация класса создания ЭЦП.</h3>
+     *
+     * @param alias псевдоним записи.
+     * @param password пароль от хранилища ключей.
+     *
+     * @throws UnrecoverableKeyException если задан не верный пароль {@code password}.
+     * @throws NullPointerException если запись с псевдонимом {@code alias} не существует.
+     */
+    public void initSignature(String alias, String password)
+            throws UnrecoverableKeyException, NullPointerException
+    {
+        try
+        {
+            PrivateKey privateKey = CryptographicAlgorithms.getPrivateKey(alias, password);
+
+            signature = Signature.getInstance("MD5withRSA");
+
+            signature.initSign(privateKey);
+        }
+        catch (NoSuchAlgorithmException|java.security.InvalidKeyException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
+    }
+
+    /**
+     * <h2>Выделение сокета</h2>
      *
      * <p>Создает объект класса {@code ServerSocket} с указанным портом {@code port}. Задаёт время ожидания подключения
      * в 10 секунд.</p>
      *
      * @param port номер порта или 0, чтобы использовать номер порта, который назначается автоматически.
      *
-     * @throws ServerInitializationException если при инициализации сервера произошла какая-то ошибка.
+     * @throws HighlightSocketException если при инициализации сервера произошла какая-то ошибка.
      */
-    public Server(int port) throws ServerInitializationException
+    public void highlightSocket(int port) throws HighlightSocketException
     {
         try
         {
@@ -53,20 +94,25 @@ public class Server
         }
         catch (SocketException ex)
         {
-            throw new ServerInitializationException("Данный порт уже занят.");
+            throw new HighlightSocketException("Данный порт уже занят.");
         }
         catch (IllegalArgumentException ex)
         {
-            throw new ServerInitializationException("Указан некорректный номер порта. Введите номер порта заново.");
+            throw new HighlightSocketException("Указан некорректный номер порта. Введите номер порта заново.");
         }
         catch (SecurityException ex)
         {
-            throw new ServerInitializationException("Менеджер безопасности и его метод checkListen не разрешает операцию.");
+            throw new HighlightSocketException("Менеджер безопасности и его метод checkListen не разрешает операцию.");
         }
         catch (IOException ex)
         {
-            throw new ServerInitializationException("При открытии сокета возникла ошибка ввода-вывода.");
+            throw new HighlightSocketException("При открытии сокета возникла ошибка ввода-вывода.");
         }
+    }
+
+    public Socket getSocket()
+    {
+        return socket;
     }
 
     /**
@@ -85,7 +131,7 @@ public class Server
      */
     public void connection() throws ConnectionException
     {
-        System.out.println("Ожидание клиента на порт " + serverSocket.getLocalPort() + "...");
+//        System.out.println("Ожидание клиента на порт " + serverSocket.getLocalPort() + "...");
 
         try
         {
@@ -99,8 +145,6 @@ public class Server
         {
             throw new ConnectionException("Во время ожидания соединения возникла ошибка ввода-вывода.");
         }
-
-        System.out.println("Подключение прошло успешно!");
 
         try
         {
@@ -124,22 +168,14 @@ public class Server
      *
      * @throws ConnectionProtectionException если по каким-то причинам не получилось защитить канал передачи данных
      */
-    public void connectionProtection()
-            throws ConnectionProtectionException
+    public void connectionProtection() throws ConnectionProtectionException
     {
         if (socket == null)
             throw new ConnectionProtectionException("Нет связи с клиентским приложением.");
 
         KeyPair keyPair;
 
-        try
-        {
-            keyPair = CryptographicAlgorithms.generateKeyPair();
-        }
-        catch (NoSuchAlgorithmException ex)
-        {
-            throw new ConnectionProtectionException("Провайдер не поддерживает реализация криптоалгоритма.");
-        }
+        keyPair = CryptographicAlgorithms.generateKeyPair();
 
         PublicKey publicKey   = keyPair.getPublic();
         PrivateKey privateKey = keyPair.getPrivate();
@@ -165,22 +201,17 @@ public class Server
             }
 
             secretKey = CryptographicAlgorithms.unwrapKey(wrappedKeyBytes, privateKey);
+
+            if (secretKey == null)
+                throw new NullPointerException("В ходе развёртки секретного ключа произошла ошибка.");
         }
         catch (IOException ex)
         {
             throw new ConnectionProtectionException("Возникла ошибка ввода-вывода.");
         }
-        catch (NoSuchAlgorithmException ex)
+        catch (NullPointerException ex)
         {
-            throw new ConnectionProtectionException("Провайдер не поддерживает реализация криптоалгоритма.");
-        }
-        catch (NoSuchPaddingException ex)
-        {
-            throw new ConnectionProtectionException("Криптографический механизм загружен и не доступен.");
-        }
-        catch (InvalidKeyException ex)
-        {
-            throw new ConnectionProtectionException("Установленный ключ не поддерживается для данного алгоритма.");
+            throw new ConnectionProtectionException(ex.getMessage());
         }
     }
 
@@ -201,9 +232,26 @@ public class Server
 
             byte[] messageBytes = message.getBytes();
 
-            byte[] cipherBytes = CryptographicAlgorithms.encrypt(messageBytes, secretKey);
+//            System.out.println("Длина в байтах: " + messageBytes.length);
 
-            System.out.println(cipherBytes.length);
+            byte[] lengthMessageBytes = intToBs(messageBytes.length);
+
+            signature.update(messageBytes);
+
+            byte[] sign = signature.sign();
+
+//            System.out.println("Length sing: " + sign.length);
+
+            byte[] finalMessageBytes = new byte[lengthMessageBytes.length + messageBytes.length + sign.length];
+
+            System.arraycopy(lengthMessageBytes, 0, finalMessageBytes, 0, lengthMessageBytes.length);
+            System.arraycopy(messageBytes, 0, finalMessageBytes, lengthMessageBytes.length, messageBytes.length);
+            System.arraycopy(sign, 0, finalMessageBytes, lengthMessageBytes.length + messageBytes.length, sign.length);
+//            System.out.println("Length finalMessageBytes: " + finalMessageBytes.length);
+            byte[] cipherBytes = CryptographicAlgorithms.encrypt(finalMessageBytes, secretKey);
+
+            if (cipherBytes == null)
+                throw new NullPointerException("В ходе шифрования сообщения произошла ошибка.");
 
             out.write(cipherBytes);
         }
@@ -211,57 +259,82 @@ public class Server
         {
             throw new SendMessageException("Возникла ошибка ввода-вывода.");
         }
-        catch (NoSuchAlgorithmException ex)
+        catch (java.security.SignatureException ex)
         {
-            throw new SendMessageException("Провайдер не поддерживает реализация криптоалгоритма.");
+            throw new SendMessageException("Класс формирования ЭЦП не инициализирован.");
         }
-        catch (NoSuchPaddingException ex)
+        catch (NullPointerException ex)
         {
-            throw new SendMessageException("Криптографический механизм загружен и не доступен.");
+            throw new SendMessageException(ex.getMessage());
         }
-        catch (InvalidKeyException ex)
-        {
-            throw new SendMessageException("Установленный ключ не поддерживается для данного алгоритма.");
-        }
-        catch (IllegalBlockSizeException ex)
-        {
-            throw new SendMessageException("Длина сообщения не соответствует длине блока.");
-        }
-        catch (BadPaddingException ex)
-        {
-            throw new SendMessageException("Сообщение дополнено неверным образом.");
-        }
+
     }
 
-    /**
-     * <h2>Проверка соединения</h2>
-     * @return
-     */
-    public boolean isConnect()
+
+    public int synchronizationIn() throws SynchronizationException
     {
-        return socket != null;
+        int result = - 1;
+
+        try
+        {
+            if (in.available() > 0)
+            {
+                result = in.read();
+            }
+        }
+        catch (IOException ex)
+        {
+            throw new SynchronizationException("Возникла ошибка ввода-вывода.");
+        }
+
+        return result;
     }
 
-    public boolean connected()
+    public void synchronizationOut(int signal) throws SynchronizationException
     {
-        return true;
+        try
+        {
+            out.write(signal);
+        }
+        catch (IOException ex)
+        {
+            throw new SynchronizationException("Возникла ошибка ввода-вывода.");
+        }
     }
 
     /**
      * <h2>Потерять соединение</h2>
-     * @throws IOException если произошла ошибка ввода-вывода
      */
-    public void disconnect() throws IOException
+    public void disconnect()
     {
-        in.close();
-        out.close();
-        socket.close();
-        serverSocket.close();
+        try
+        {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null) socket.close();
+            serverSocket.close();
+        }
+        catch (IOException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
     }
 
-    public class ServerInitializationException extends Exception
+    public class HighlightSocketException extends Exception
     {
-        public ServerInitializationException(String message)
+        public HighlightSocketException(String message)
         {
             super(message);
         }
@@ -289,6 +362,33 @@ public class Server
         {
             super(message);
         }
+    }
+
+    public class SynchronizationException extends Exception
+    {
+        public SynchronizationException(String message)
+        {
+            super(message);
+        }
+    }
+
+    /**
+    * <h2>Преобразование числа типа данных int в массив байтов.</h2>
+    */
+    private byte[] intToBs(int num)
+    {
+        byte[] bytes = new byte[4];
+
+        for (int i = 0; i < 4; i++)
+        {
+            byte b = (byte)(num & 0xFF);
+
+            num >>= 4;
+
+            bytes[i] = b;
+        }
+
+        return bytes;
     }
 }
 

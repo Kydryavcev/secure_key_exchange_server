@@ -1,6 +1,10 @@
 package model;
 
 import javax.crypto.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.security.*;
 
 /**
@@ -14,17 +18,35 @@ import java.security.*;
  */
 public class CryptographicAlgorithms
 {
-
     /**
      * <h3>Генерирование ключевой пары для алгоритма RSA</h3>
      *
-     * @throws NoSuchAlgorithmException если не один провайдер не поддерживает данный алгоритм (RSA)
-     *
      * @return ключевую пару {@code KerPair}
      */
-    public static KeyPair generateKeyPair() throws NoSuchAlgorithmException
+    public static KeyPair generateKeyPair()
     {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        KeyPairGenerator kpg = null;
+
+        try
+        {
+            kpg = KeyPairGenerator.getInstance("RSA");
+        }
+        catch (NoSuchAlgorithmException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
 
         kpg.initialize(2048);
 
@@ -36,26 +58,39 @@ public class CryptographicAlgorithms
      *
      * <p>Данный метод развёртывает ключ {@param wrappedKey} с помощью секретного ключа {@code key}</p>
      *
-     * @throws NoSuchAlgorithmException если преобразование имеет значение null, пусто, имеет недопустимый формат или
-     * если ни один поставщик не поддерживает реализацию CipherSpi для указанного алгоритма.
-     * @throws NoSuchPaddingException если преобразование содержит схему заполнения, которая недоступна.
-     * @throws InvalidKeyException если данный ключ не подходит для инициализации этого шифра или требует параметров
-     * алгоритма, которые не могут быть определены из данного ключа, или если данный ключ имеет размер ключа, который
-     * превышает максимально допустимый размер ключа (как определено из настроенных файлов политики юрисдикции).
-     *
      * @param wrappedKey импортируемый ключ, который будет подвержен развёртке.
      * @param key секретный ключ, с помощью которого будет разворачиваться секретный ключ {@code wrappedKey}.
      *
-     * @return секретный ключ.
+     * @return Секретный ключ или {@code null}, если входе работы произошла ошибка (см. файл .log).
      */
     public static Key unwrapKey(byte[] wrappedKey, PrivateKey key)
-            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException
     {
-        Cipher cipher = Cipher.getInstance("RSA");
+        try
+        {
+            Cipher cipher = Cipher.getInstance("RSA");
 
-        cipher.init(Cipher.UNWRAP_MODE, key);
+            cipher.init(Cipher.UNWRAP_MODE, key);
 
-        return cipher.unwrap(wrappedKey, "AES", Cipher.SECRET_KEY);
+            return cipher.unwrap(wrappedKey, "AES", Cipher.SECRET_KEY);
+        }
+        catch (NoSuchAlgorithmException|NoSuchPaddingException|InvalidKeyException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -68,27 +103,111 @@ public class CryptographicAlgorithms
      * @param key ключ, с помощью которого будет произведено шифрование.
      *
      * @return Массив байтов, представляющий сабой зашифрованные данные.
-     *
-     * @throws NoSuchAlgorithmException если преобразование имеет нулевое значение, пусто, имеет недопустимый формат или,
-     * если ни один провайдер не поддерживает реализацию CipherSpi для указанного алгоритма.
-     * @throws NoSuchPaddingException если преобразование содержит схему заполнения, которая недоступна.
-     * @throws InvalidKeyException если данный ключ не подходит для инициализации этого шифра или, если данный ключ имеет
-     * размер ключа, который превышает максимально допустимый размер ключа.
-     * @throws IllegalBlockSizeException если этот шифр является блочным, заполнение не запрашивалось (только в режиме
-     * шифрования), а общая входная длина данных, обработанных этим шифром, не кратна размеру блока; или если этот
-     * алгоритм шифрования не может обработать предоставленные входные данные.
-     * @throws BadPaddingException если при расшифровании с отсечением дополнительных байтов содержимое дополнительного
-     * байта не соответствует количеству байтов, подлежащих отсечению
+     * Или {@code null}, если входе работы произошла ошибка (см. файл .log).
      */
     public static byte[] encrypt(byte[] data, Key key)
-            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-            IllegalBlockSizeException, BadPaddingException
     {
-        System.out.println(new String(data));
-        Cipher cipher = Cipher.getInstance("AES");
+        try
+        {
+            Cipher cipher = Cipher.getInstance("AES");
 
-        cipher.init(Cipher.ENCRYPT_MODE, key);
+            cipher.init(Cipher.ENCRYPT_MODE, key);
 
-        return cipher.doFinal(data);
+            return cipher.doFinal(data);
+        }
+        catch (NoSuchAlgorithmException|NoSuchPaddingException|InvalidKeyException|IllegalBlockSizeException|
+               BadPaddingException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * <h3>Получение секретного ключа для ЭЦП</h3>
+     *
+     * <p>Находит в хранилище ключей запись с псевдонимом {@code alias}. Загружает из записи секретный ключ.</p>
+     *
+     * @param alias псевдоним записи.
+     * @param password пароль от хранилища ключей.
+     *
+     * @return Секретный ключ для ЭЦП.
+     *
+     * @throws UnrecoverableKeyException если задан не верный пароль {@code password}.
+     * @throws NullPointerException если запись с псевдонимом {@code alias} не существует.
+     */
+    public static PrivateKey getPrivateKey(String alias, String password)
+            throws UnrecoverableKeyException, NullPointerException
+    {
+        KeyStore.PrivateKeyEntry pkEntry = null;
+
+        try
+        {
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+
+            char[] charsPassword = password.toCharArray();
+
+            final String HOMEPATH = System.getenv("HOMEPATH");
+
+            try (FileInputStream fis = new FileInputStream("C:\\"+HOMEPATH+"\\.keystore"))
+            {
+                keyStore.load(fis, charsPassword);
+            }
+            catch (IOException ex)
+            {
+                if (ex.getCause().getClass() == UnrecoverableKeyException.class)
+                {
+                    throw new UnrecoverableKeyException();
+                }
+                else
+                {
+                    System.out.println("Файла для логирования не существует");
+                    System.out.println(ex.getMessage());
+                }
+            }
+
+            KeyStore.ProtectionParameter protectionParameter = new KeyStore.PasswordProtection(charsPassword);
+
+            pkEntry = (KeyStore.PrivateKeyEntry) keyStore.getEntry(alias, protectionParameter);
+
+            if (pkEntry == null)
+                throw new NullPointerException("Запись с псевдонимом " + alias + " не найдена.");
+        }
+        catch (UnrecoverableKeyException ex) // чтобы UnrecoverableEntryException не перехватил
+        {
+            throw ex;
+        }
+        catch (KeyStoreException|NoSuchAlgorithmException|java.security.cert.CertificateException|
+               java.security.UnrecoverableEntryException ex)
+        {
+            try (FileWriter fw = new FileWriter("src/main/resources/logs/.log"))
+            {
+                fw.write(java.time.LocalDateTime.now().toString());
+                fw.write(CryptographicAlgorithms.class.getName() + "\n");
+                fw.write(new Exception().getStackTrace()[0].getMethodName() + "\n");
+                fw.write(ex.getClass().getName() + "\n");
+                fw.write(ex.getMessage() + "\n");
+            }
+            catch (IOException ex1)
+            {
+                System.out.println("Файла для логирования не существует");
+                System.out.println(ex1.getMessage());
+            }
+        }
+
+        return pkEntry.getPrivateKey();
     }
 }
